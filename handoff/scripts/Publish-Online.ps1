@@ -54,7 +54,12 @@ if ($Status) {
     Write-Host "Nothing new to commit." -ForegroundColor Gray
 }
 
-$RemoteUrl = git remote get-url origin 2>$null
+$RemoteUrl = $null
+try {
+    $RemoteUrl = git remote get-url origin 2>$null
+} catch {
+    $RemoteUrl = $null
+}
 if (-not $RemoteUrl) {
     Write-Host "Creating public GitHub repo: $RepoName" -ForegroundColor Cyan
     gh repo create $RepoName --public --source=. --remote=origin --push

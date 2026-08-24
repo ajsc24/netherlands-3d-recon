@@ -102,8 +102,11 @@ if (-not $SkipPages) {
 $RepoUrl | Set-Content -Path (Join-Path $Docs "repo-url.txt") -Encoding UTF8 -NoNewline
 $RepoUrl | Set-Content -Path (Join-Path $Showcase "repo-url.txt") -Encoding UTF8 -NoNewline
 git add docs handoff/showcase/repo-url.txt handoff/scripts/Publish-Online.ps1
-git commit -m "Set showcase repo URL" 2>$null
-git push 2>$null
+$prev = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+git commit -m "Set showcase repo URL" 2>$null | Out-Null
+git push 2>&1 | Out-Null
+$ErrorActionPreference = $prev
 
 Write-Host ""
 Write-Host "=== Published ===" -ForegroundColor Green

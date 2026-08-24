@@ -1,0 +1,70 @@
+# Handoff config — paths relative to gpu_handoff_netherlands/
+video_path: "input/NetherlandsBottomLevel.mp4"
+
+reference_video_path: null
+work_dir: "workspace_netherlands"
+
+extract_fps: 2.0
+max_frames: 320
+
+projection: equirect
+views_per_frame: 8
+perspective_fov_deg: 90
+perspective_size: 1024
+
+drone_mask:
+  enabled: true
+  polygon:
+    - [0.0, 0.58]
+    - [1.0, 0.58]
+    - [1.0, 1.0]
+    - [0.0, 1.0]
+  dilate_px: 0
+  inpaint: false
+
+colmap:
+  enabled: true
+  colmap_exe: "tools/bin/colmap.exe"
+  max_image_size: 1600
+  use_gpu: true
+  ba_use_gpu: true
+  # All dewarped views share identical intrinsics (same FOV/size).
+  single_camera: true
+  dense_mode: cuda
+  dense_geom_consistency: true
+  dense_max_image_size: 1200
+  dense_gpu_index: 0
+  dense_cache_size: 64
+  fusion_num_threads: 20
+  fusion_use_cache: true
+  fusion_cache_size: 64
+  fusion_max_reproj_error: 1.5
+  fusion_max_depth_error: 0.008
+  fusion_max_normal_error: 8
+  fusion_min_num_pixels: 5
+  fusion_check_num_images: 35
+  matcher: sequential
+  sequential_overlap: 30
+  init_min_num_inliers: 15
+  abs_pose_min_num_inliers: 10
+  min_num_matches: 8
+  use_masks_in_colmap: true
+
+# PyMeshLab (MeshLab filters): outlier removal + Screened Poisson mesh.
+postprocess:
+  enabled: true
+  max_coord: 80.0
+  core_percentile: 99.0
+  outlier_k: 32
+  outlier_threshold: 0.75
+  normal_k: 20
+  normal_smooth: 2
+  poisson_depth: 10
+  poisson_fulldepth: 6
+  poisson_samples_per_node: 1.5
+  poisson_point_weight: 4.0
+  poisson_iters: 8
+  poisson_preclean: true
+  poisson_threads: 20
+  min_component_percent: 3.0
+  colmap_poisson_fallback: false

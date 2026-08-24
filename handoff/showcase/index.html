@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="3D interior reconstruction of a Netherlands house bottom floor from Insta360 X2 video — photogrammetry pipeline showcase." />
+  <title>Netherlands Interior 3D — Showcase</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand-mark">3D</span>
+      <span class="brand-text">Netherlands Interior</span>
+    </div>
+    <nav class="nav">
+      <a href="#viewer">Model</a>
+      <a href="#about">About</a>
+      <a href="#pipeline">Pipeline</a>
+      <a href="#code" id="code-link">Code</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" id="viewer">
+      <div class="hero-copy">
+        <p class="eyebrow">Photogrammetry showcase</p>
+        <h1 id="hero-title">Netherlands bottom floor</h1>
+        <p class="lede" id="hero-subtitle">360° walkthrough reconstructed into an explorable 3D mesh</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#viewer-canvas">Explore model</a>
+          <a class="btn btn-ghost" href="#code" id="hero-code-btn">View source code</a>
+        </div>
+        <p class="hint" id="viewer-hint">Drag to orbit · scroll to zoom · right-drag to pan</p>
+      </div>
+      <div class="viewer-wrap">
+        <canvas id="viewer-canvas" aria-label="Interactive 3D model viewer"></canvas>
+        <div class="viewer-overlay" id="viewer-overlay">
+          <div class="spinner" id="viewer-spinner"></div>
+          <p id="viewer-status">Loading 3D model…</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats" aria-label="Reconstruction statistics">
+      <article class="stat-card">
+        <span class="stat-value" data-stat="registered">—</span>
+        <span class="stat-label">Images registered</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-value" data-stat="registration_pct">—</span>
+        <span class="stat-label">Registration rate</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-value" data-stat="sparse_points">—</span>
+        <span class="stat-label">Sparse points</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-value" data-stat="images">—</span>
+        <span class="stat-label">Perspective views</span>
+      </article>
+    </section>
+
+    <section class="about grid-2" id="about">
+      <div>
+        <h2>What this is</h2>
+        <p>
+          A full open-source pipeline turns a single Insta360 X2 interior walkthrough into a dense 3D mesh.
+          The camera moves through the bottom floor of a house in the Netherlands while a drone rig is masked out
+          so photogrammetry focuses on walls, furniture, and architecture.
+        </p>
+        <p class="status-line" id="pipeline-status"></p>
+      </div>
+      <div class="about-visual">
+        <img src="assets/preview.jpg" alt="Sample perspective view from the walkthrough" width="640" height="640" loading="lazy" />
+        <p class="caption">Sample dewarped view · Insta360 X2 equirect → perspective</p>
+      </div>
+    </section>
+
+    <section class="pipeline" id="pipeline">
+      <h2>Pipeline</h2>
+      <ol class="pipeline-steps">
+        <li><strong>Extract</strong> — frames from MP4 at 5 fps</li>
+        <li><strong>Keyframes</strong> — sharp, well-spaced subset (~320)</li>
+        <li><strong>Mask</strong> — hide drone nadir (bottom 42%)</li>
+        <li><strong>Dewarp</strong> — 12 perspective views per frame</li>
+        <li><strong>COLMAP SfM</strong> — sparse cameras + point cloud</li>
+        <li><strong>Dense MVS</strong> — depth maps, fusion, Poisson mesh</li>
+        <li><strong>OpenMVS</strong> — textured OBJ export</li>
+      </ol>
+      <ul class="tool-list" id="tool-list"></ul>
+    </section>
+
+    <section class="code-section" id="code">
+      <h2>Source code &amp; docs</h2>
+      <p>
+        The full annotated pipeline, configs, and handoff documentation live in the project repository.
+        Clone it to run the reconstruction on your own GPU, or browse the handoff package for architecture notes.
+      </p>
+      <div class="code-links">
+        <a class="btn btn-primary" href="#" id="repo-link" target="_blank" rel="noopener">Open GitHub repository</a>
+        <a class="btn btn-ghost" href="https://github.com/search?q=netherlands-3d-recon" id="repo-fallback" target="_blank" rel="noopener">Search repository</a>
+      </div>
+      <pre class="clone-box" id="clone-box"><code>git clone REPO_URL</code></pre>
+      <p class="caption">After publishing, run <code>handoff/scripts/Publish-Online.ps1</code> once to set this URL automatically.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Netherlands 3D reconstruction · COLMAP + OpenMVS · Windows GPU pipeline</p>
+  </footer>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="viewer.js"></script>
+  <script type="module" src="site.js"></script>
+</body>
+</html>

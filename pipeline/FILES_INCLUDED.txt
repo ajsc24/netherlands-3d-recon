@@ -1,0 +1,33 @@
+drone_recon_linux — portable Linux package
+==========================================
+
+Python (pipeline):
+  pipeline.py
+  extract_frames.py
+  mask_drone.py
+  dewarp_views.py
+  repair_video.py
+  run_colmap.py
+
+Config & deps:
+  config.yaml
+  requirements.txt
+
+Linux scripts:
+  install_linux.sh   — apt install ffmpeg + colmap, create .venv
+  run.sh             — full pipeline
+  resume_colmap.sh   — COLMAP step only
+
+Docs:
+  TRANSFER_README.md — read this on Linux
+
+Folders (empty until you run):
+  input/             — put video.mp4 here
+  workspace/         — created by pipeline (large)
+
+NOT included (copy separately):
+  - Your source .mp4 (~2.5 GB) → input/video.mp4
+  - Optional: partial workspace/ from Windows to resume
+
+Zip on Windows:
+  powershell -File MAKE_ZIP.ps1

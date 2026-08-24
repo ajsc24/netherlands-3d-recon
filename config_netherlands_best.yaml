@@ -1,0 +1,56 @@
+# Best-quality integrated pipeline — uses existing COLMAP sparse+dense, adds OpenMVS + multi-mesh pick.
+video_path: "input/NetherlandsBottomLevel.mp4"
+reference_video_path: null
+work_dir: "workspace_netherlands"
+
+# Re-fusion tuned for flat walls (more points, less strict filtering).
+refusion:
+  enabled: true
+  fusion_max_reproj_error: 3.0
+  fusion_max_depth_error: 0.02
+  fusion_max_normal_error: 15
+  fusion_min_num_pixels: 3
+  fusion_check_num_images: 15
+
+colmap:
+  colmap_exe: "tools/bin/colmap.exe"
+
+openmvs:
+  enabled: true
+  openmvs_dir: "tools/openmvs"
+  resolution_level: 1
+  number_views: 10
+  number_views_fuse: 4
+  refine_mesh: false
+  texture_mesh: true
+  texture_resolution_level: 2
+  decimate: 0.5
+  max_texture_size: 4096
+  # Import sparse only — avoids crash loading 20M+ fused.ply; OpenMVS densifies fresh.
+  import_sparse_only: true
+
+postprocess:
+  enabled: true
+  max_coord: 120.0
+  core_percentile: 99.8
+  outlier_k: 48
+  outlier_threshold: 0.85
+  normal_k: 30
+  normal_smooth: 3
+  poisson_depth: 12
+  poisson_fulldepth: 7
+  poisson_samples_per_node: 2.0
+  poisson_point_weight: 3.0
+  poisson_iters: 10
+  poisson_preclean: true
+  poisson_threads: 20
+  min_component_percent: 1.0
+  colmap_poisson_fallback: true
+  colmap_poisson_depth: 12
+  colmap_poisson_trim: 6.0
+  max_poisson_points: 3000000
+
+gaussian_splat:
+  enabled: true
+  target_keyframes: 80
+  output_dir: "exports/360gs_dataset"

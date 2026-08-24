@@ -1,0 +1,8 @@
+.venv/
+workspace/
+__pycache__/
+*.pyc
+input/*.mp4
+input/*.MP4
+*.db
+.DS_Store

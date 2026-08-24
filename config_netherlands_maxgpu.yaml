@@ -1,0 +1,51 @@
+# Max quality on i7-13700F + RTX 3050 8GB + 32GB RAM.
+# Slower than default but uses more GPU/CPU/RAM for better dense mesh.
+# Use:  .\pipeline\Run-Dense.ps1 -Config ..\config_netherlands_maxgpu.yaml
+video_path: "input/NetherlandsBottomLevel.mp4"
+reference_video_path: null
+work_dir: "workspace_netherlands"
+
+extract_fps: 2.0
+max_frames: 320
+
+projection: equirect
+views_per_frame: 8
+perspective_fov_deg: 90
+perspective_size: 1024
+
+drone_mask:
+  enabled: true
+  polygon:
+    - [0.0, 0.58]
+    - [1.0, 0.58]
+    - [1.0, 1.0]
+    - [0.0, 1.0]
+  dilate_px: 0
+  inpaint: false
+
+colmap:
+  enabled: true
+  colmap_exe: "tools/bin/colmap.exe"
+  max_image_size: 2000
+  use_gpu: true
+  ba_use_gpu: true
+  ba_gpu_index: 0
+  mapper_num_threads: 20
+  extract_num_threads: 16
+  dense_mode: cuda
+  dense_geom_consistency: true
+  dense_max_image_size: 1400
+  dense_gpu_index: 0
+  dense_cache_size: 64
+  dense_num_iterations: 5
+  fusion_num_threads: 20
+  fusion_cache_size: 64
+  fusion_use_cache: true
+  fusion_max_image_size: 1400
+  single_camera: false
+  matcher: sequential
+  sequential_overlap: 30
+  init_min_num_inliers: 15
+  abs_pose_min_num_inliers: 10
+  min_num_matches: 8
+  use_masks_in_colmap: true

@@ -1,0 +1,5 @@
+Copy your Insta360 video here:
+
+  NetherlandsBottomLevel.mp4
+
+Expected: HEVC, 5760x2880 equirect, ~2:37 duration, ~1.9 GB

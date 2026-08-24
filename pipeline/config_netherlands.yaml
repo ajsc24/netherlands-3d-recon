@@ -1,0 +1,39 @@
+# Insta360 X2 equirect interior walkthrough (5760x2880, ~2:37)
+video_path: "/home/leap-group/Downloads/NetherlandsBottomLevel.mp4"
+
+reference_video_path: null
+work_dir: "./workspace_netherlands"
+
+extract_fps: 2.0
+max_frames: 320
+
+# True 360 equirect 2:1 from Insta360 export
+projection: equirect
+views_per_frame: 8
+perspective_fov_deg: 90
+perspective_size: 1024
+
+# Nadir / bottom of sphere: drone body, mount pole, hands (Insta360 held from below)
+drone_mask:
+  enabled: true
+  polygon:
+    - [0.0, 0.58]
+    - [1.0, 0.58]
+    - [1.0, 1.0]
+    - [0.0, 1.0]
+  dilate_px: 0
+  inpaint: false
+
+colmap:
+  enabled: true
+  colmap_exe: "colmap"
+  max_image_size: 1600
+  use_gpu: true
+  dense_mode: cuda
+  single_camera: false
+  matcher: sequential
+  sequential_overlap: 30
+  init_min_num_inliers: 15
+  abs_pose_min_num_inliers: 10
+  min_num_matches: 8
+  use_masks_in_colmap: true

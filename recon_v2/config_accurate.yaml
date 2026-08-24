@@ -1,0 +1,125 @@
+# Accuracy-first reconstruction — Insta360 X2 Netherlands bottom floor
+# Paths are relative to the project root (parent of recon_v2/).
+
+video_path: "input/NetherlandsBottomLevel.mp4"
+work_dir: "workspace_v2"
+
+extract:
+  fps: 5.0
+  jpeg_quality: 2          # ffmpeg -q:v (2 = high quality)
+
+keyframes:
+  enabled: true
+  target: 320
+  min_frame_gap: 2
+  output_dir: "frames_key"
+
+drone_mask:
+  enabled: true
+  # COLMAP: 0 = ignore, 255 = valid. Mask out bottom drone/hands band.
+  polygon:
+    - [0.0, 0.58]
+    - [1.0, 0.58]
+    - [1.0, 1.0]
+    - [0.0, 1.0]
+  dilate_px: 2
+  min_valid_fraction: 0.55
+
+dewarp:
+  views_per_frame: 12
+  perspective_fov_deg: 85
+  perspective_size: 1536
+  # Pitch cycle: mostly horizon, slight up for walls/ceiling overlap
+  pitch_cycle: [0.0, 0.0, 0.0, 8.0]
+
+colmap:
+  colmap_exe: "tools/bin/colmap.exe"
+  use_gpu: true
+  ba_use_gpu: true
+  single_camera: true
+  use_masks_in_colmap: true
+  max_image_size: 2000
+  max_num_features: 8192
+  # pairs = view-aware temporal matching (required for frame_XXXX_vYY layout)
+  matcher: pairs
+  sequential_overlap: 80
+  init_min_num_inliers: 15
+  abs_pose_min_num_inliers: 10
+  min_num_matches: 8
+
+matching:
+  temporal_radius: 10
+  cross_radius: 2
+  dense_mode: cuda
+  dense_geom_consistency: true
+  dense_max_image_size: 1400
+  dense_gpu_index: 0
+  dense_cache_size: 48
+  fusion_num_threads: -1
+  fusion_use_cache: true
+  fusion_cache_size: 48
+
+# Sparse reconstruction QA — hard stop before dense if unmet
+qa:
+  min_registered_ratio: 0.85
+  min_mean_track_length: 3.0
+
+# Dual fusion: strict (clean) + wall-friendly (coverage)
+fusion_strict:
+  max_reproj_error: 1.5
+  max_depth_error: 0.008
+  max_normal_error: 8
+  min_num_pixels: 5
+  check_num_images: 35
+  output_name: "fused_strict.ply"
+
+fusion_wall:
+  max_reproj_error: 3.0
+  max_depth_error: 0.02
+  max_normal_error: 15
+  min_num_pixels: 3
+  check_num_images: 15
+  output_name: "fused_wall.ply"
+
+# Primary fused.ply used for mesh post = wall (coverage)
+fusion_primary: wall
+
+postprocess:
+  enabled: true
+  max_coord: 120.0
+  core_percentile: 99.8
+  outlier_k: 48
+  outlier_threshold: 0.85
+  normal_k: 30
+  normal_smooth: 3
+  poisson_depth: 12
+  poisson_fulldepth: 7
+  poisson_samples_per_node: 2.0
+  poisson_point_weight: 3.0
+  poisson_iters: 10
+  poisson_preclean: true
+  poisson_threads: 20
+  min_component_percent: 1.0
+  max_poisson_points: 4000000
+  colmap_poisson_fallback: true
+  colmap_poisson_depth: 12
+  colmap_poisson_trim: 6.0
+
+openmvs:
+  enabled: true
+  openmvs_dir: "tools/openmvs"
+  resolution_level: 1
+  number_views: 10
+  number_views_fuse: 4
+  refine_mesh: false
+  texture_mesh: true
+  texture_resolution_level: 2
+  decimate: 0.5
+  max_texture_size: 4096
+  import_sparse_only: true
+
+gaussian_splat:
+  enabled: true
+  target_keyframes: 100
+  min_frame_gap: 3
+  output_dir: "exports_v2/360gs_dataset"

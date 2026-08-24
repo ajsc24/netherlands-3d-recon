@@ -1,0 +1,43 @@
+# === Edit before first run ===
+# Put your MP4 in this folder (or set an absolute path)
+video_path: "./input/video.mp4"
+
+reference_video_path: null
+
+# All outputs go here (created automatically)
+work_dir: "./workspace"
+
+extract_fps: 2.0
+max_frames: 600
+
+# "raw" = flat Insta360 / normal video (2560x1440)
+# "equirect" = 2:1 stitched 360 panorama only
+projection: raw
+views_per_frame: 1
+perspective_fov_deg: 90
+perspective_size: 1024
+
+drone_mask:
+  enabled: true
+  polygon:
+    - [0.05, 0.50]
+    - [0.95, 0.50]
+    - [0.98, 1.0]
+    - [0.02, 1.0]
+  dilate_px: 12
+  inpaint: false
+
+colmap:
+  enabled: true
+  # Leave as "colmap" if installed via apt; or full path to binary
+  colmap_exe: "colmap"
+  max_image_size: 1600
+  use_gpu: false  # no NVIDIA driver on this host; set true when CUDA is available
+  single_camera: true
+  matcher: sequential
+  sequential_overlap: 30
+  init_min_num_inliers: 15
+  abs_pose_min_num_inliers: 10
+  min_num_matches: 8
+  # Retry without masks if mapper registers too few images
+  use_masks_in_colmap: false

@@ -1,0 +1,61 @@
+# Python virtual environments
+**/.venv/
+**/venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Large reconstruction outputs (not for git — keep locally)
+workspace/
+workspace_*/
+archive/
+exports/
+exports_*/
+
+# Binaries & tools (re-download via Install-*.ps1)
+tools/bin/
+tools/openmvs/
+tools/plugins/
+
+# Video & huge assets
+input/*.mp4
+input/*.MP4
+input/*.mov
+*.mp4
+*.MP4
+
+# COLMAP / temp databases
+*.db
+*.db-*
+
+# Logs & scratch
+*.log
+%log%
+PR_*
+tmp_*.txt
+*_extract.txt
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# Unrelated subprojects (optional — remove lines to include)
+nd_trap_sim/
+nd_trap_sim_code/
+nd_trap_sim_code.zip
+
+# Optional large GLB (use decimated model.ply instead — see Export-WebModel.ps1)
+handoff/showcase/assets/model.glb
+
+# Legacy partial files
+cambridge_ot_*.txt
+nd_literature_extract.txt

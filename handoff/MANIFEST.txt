@@ -1,0 +1,31 @@
+# Handoff Package Manifest
+
+Generated: June 2026
+Source project: gpu_handoff_netherlands/
+
+## Documentation (handoff/docs/)
+- README.md (parent) — start here index
+- PROJECT_STATUS.md — results, deliverables, stats
+- ARCHITECTURE.md — pipeline diagram, tool chain
+- SETUP_AND_RUN.md — install and run commands
+- CONFIG_GUIDE.md — YAML config reference
+- CODE_ANNOTATIONS.md — annotated walkthrough of all Python
+- KNOWN_ISSUES.md — bugs fixed, limitations
+- PROJECT_DESCRIPTION.md — original project overview
+
+## Code mirror (handoff/code/)
+- pipeline/*.py — Python modules with # HANDOFF annotation headers
+- pipeline/requirements.txt — pip dependencies
+- configs/config_netherlands_*.yaml — all pipeline configs
+- scripts/*.ps1 — PowerShell entry points
+
+## Not included (download / generate separately)
+- input/NetherlandsBottomLevel.mp4
+- workspace_netherlands/ (reconstruction outputs)
+- tools/bin/colmap.exe (Install-Windows.ps1)
+- tools/openmvs/ (Install-OpenMVS.ps1)
+- pipeline/.venv/
+
+## Live code location
+Run pipelines from project root using ../pipeline/ and ../config_*.yaml.
+handoff/code/ is a read-only snapshot for documentation and transfer.

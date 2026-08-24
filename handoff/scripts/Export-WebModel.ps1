@@ -15,13 +15,22 @@ param(
 $ErrorActionPreference = "Stop"
 $OutGlb = Join-Path $Root "handoff\showcase\assets\model.glb"
 $OutPly = Join-Path $Root "handoff\showcase\assets\model.ply"
-$Candidates = @(
+    $Candidates = @(
     (Join-Path $Root "workspace_v2\colmap\dense\mesh_best.ply"),
     (Join-Path $Root "workspace_v2\colmap\dense\mesh_final.ply"),
     (Join-Path $Root "workspace_netherlands\colmap\dense\mesh_best.ply"),
     (Join-Path $Root "workspace_v2\openmvs\scene_refine.obj"),
     (Join-Path $Root "workspace_netherlands\colmap\openmvs\scene_refine.obj")
 )
+
+# Also refresh sparse preview for walk mode when no mesh yet
+$Colmap = Join-Path $Root "tools\bin\colmap.exe"
+$Sparse = Join-Path $Root "workspace_v2\colmap\sparse\1"
+$SparseOut = Join-Path $Root "handoff\showcase\assets\sparse_preview.ply"
+if ((Test-Path $Colmap) -and (Test-Path $Sparse)) {
+    & $Colmap model_converter --input_path $Sparse --output_path $SparseOut --output_type PLY 2>$null
+    Copy-Item $SparseOut (Join-Path $Root "docs\assets\sparse_preview.ply") -Force -ErrorAction SilentlyContinue
+}
 
 $Mesh = $Candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $Mesh) {

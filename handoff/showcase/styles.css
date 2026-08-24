@@ -137,11 +137,66 @@ code {
 
 .viewer-wrap {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 10;
   border-radius: var(--radius);
   overflow: hidden;
   border: 1px solid var(--border);
   background: var(--surface);
+}
+
+.viewer-wrap:fullscreen {
+  aspect-ratio: unset;
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+}
+
+.viewer-toolbar {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  gap: 0.35rem;
+  z-index: 10;
+}
+
+.vbtn {
+  font-family: var(--font);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(12, 14, 18, 0.85);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.vbtn:hover { color: var(--text); border-color: var(--muted); }
+.vbtn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.walk-hud {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(transparent, rgba(12, 14, 18, 0.9));
+  z-index: 9;
+  pointer-events: none;
+}
+
+.walk-hud.hidden { display: none; }
+
+.walk-prompt {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
 }
 
 #viewer-canvas {

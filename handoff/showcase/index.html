@@ -34,10 +34,18 @@
           <a class="btn btn-primary" href="#viewer-canvas">Explore model</a>
           <a class="btn btn-ghost" href="#code" id="hero-code-btn">View source code</a>
         </div>
-        <p class="hint" id="viewer-hint">Drag to orbit · scroll to zoom · right-drag to pan</p>
+        <p class="hint" id="viewer-hint">Click Enter walk mode, then WASD to move · mouse to look</p>
       </div>
-      <div class="viewer-wrap">
+      <div class="viewer-wrap" id="viewer-wrap">
         <canvas id="viewer-canvas" aria-label="Interactive 3D model viewer"></canvas>
+        <div class="viewer-toolbar">
+          <button type="button" class="vbtn active" id="btn-walk" title="First-person walk">Walk</button>
+          <button type="button" class="vbtn" id="btn-orbit" title="Orbit camera">Orbit</button>
+          <button type="button" class="vbtn" id="btn-fullscreen" title="Fullscreen">Fullscreen</button>
+        </div>
+        <div class="walk-hud" id="walk-hud">
+          <p class="walk-prompt">Click here or press Walk to enter · WASD move · Shift sprint · Esc exit</p>
+        </div>
         <div class="viewer-overlay" id="viewer-overlay">
           <div class="spinner" id="viewer-spinner"></div>
           <p id="viewer-status">Loading 3D model…</p>

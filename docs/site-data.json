@@ -1,0 +1,22 @@
+{
+  "title": "Netherlands Bottom Floor — 3D Reconstruction",
+  "subtitle": "Insta360 X2 walkthrough → photogrammetry mesh",
+  "location": "Netherlands",
+  "camera": "Insta360 X2",
+  "video": "5760×2880 equirect, ~2:37 walkthrough",
+  "stats": {
+    "keyframes": 320,
+    "images": 3840,
+    "registered": 3776,
+    "registration_pct": 98.3,
+    "sparse_points": 134268,
+    "views_per_frame": 12
+  },
+  "deliverables": {
+    "mesh_untextured": "workspace_v2/colmap/dense/mesh_best.ply",
+    "mesh_textured": "workspace_v2/openmvs/scene_refine.obj",
+    "web_model": "handoff/showcase/assets/model.glb"
+  },
+  "pipeline_status": "Sparse SfM complete (98.3% images). Dense MVS in progress.",
+  "tools": ["COLMAP 3.13 CUDA", "OpenMVS 2.4", "PyMeshLab", "Python pipeline"]
+}

@@ -54,6 +54,12 @@ if ($Status) {
     Write-Host "Nothing new to commit." -ForegroundColor Gray
 }
 
+Write-Host "Syncing showcase -> docs/ (GitHub Pages requires /docs)..." -ForegroundColor Cyan
+$Docs = Join-Path $Root "docs"
+$Showcase = Join-Path $Root "handoff\showcase"
+New-Item -ItemType Directory -Force $Docs | Out-Null
+Copy-Item (Join-Path $Showcase "*") $Docs -Recurse -Force
+
 $RemoteUrl = $null
 try {
     $RemoteUrl = git remote get-url origin 2>$null
@@ -77,21 +83,25 @@ $RepoUrl = "https://github.com/$Owner/$RepoName"
 $PagesUrl = "https://$Owner.github.io/$RepoName/"
 
 if (-not $SkipPages) {
-    Write-Host "Enabling GitHub Pages from handoff/showcase ..." -ForegroundColor Cyan
+    Write-Host "Enabling GitHub Pages from /docs ..." -ForegroundColor Cyan
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     gh api -X POST "repos/$Owner/$RepoName/pages" `
         -f build_type=legacy `
         -f "source[branch]=main" `
-        -f "source[path]=/handoff/showcase" 2>$null
+        -f "source[path]=/docs" 2>$null | Out-Null
     if ($LASTEXITCODE -ne 0) {
         gh api -X PUT "repos/$Owner/$RepoName/pages" `
             -f build_type=legacy `
             -f "source[branch]=main" `
-            -f "source[path]=/handoff/showcase" 2>$null
+            -f "source[path]=/docs" 2>$null | Out-Null
     }
+    $ErrorActionPreference = $prev
 }
 
-$RepoUrl | Set-Content -Path (Join-Path $Root "handoff\showcase\repo-url.txt") -Encoding UTF8 -NoNewline
-git add handoff/showcase/repo-url.txt
+$RepoUrl | Set-Content -Path (Join-Path $Docs "repo-url.txt") -Encoding UTF8 -NoNewline
+$RepoUrl | Set-Content -Path (Join-Path $Showcase "repo-url.txt") -Encoding UTF8 -NoNewline
+git add docs handoff/showcase/repo-url.txt handoff/scripts/Publish-Online.ps1
 git commit -m "Set showcase repo URL" 2>$null
 git push 2>$null
 

@@ -1,6 +1,6 @@
 {
   "title": "Netherlands Bottom Floor — 3D Reconstruction",
-  "subtitle": "Insta360 X2 walkthrough → photogrammetry mesh",
+  "subtitle": "Insta360 X2 walkthrough → real-time Gaussian splat",
   "location": "Netherlands",
   "camera": "Insta360 X2",
   "video": "5760×2880 equirect, ~2:37 walkthrough",
@@ -13,10 +13,9 @@
     "views_per_frame": 12
   },
   "deliverables": {
-    "mesh_untextured": "workspace_v2/colmap/dense/mesh_best.ply",
-    "mesh_textured": "workspace_v2/openmvs/scene_refine.obj",
-    "web_model": "handoff/showcase/assets/model.glb"
+    "web_model": "assets/livingroom.splat",
+    "splats": 556088
   },
-  "pipeline_status": "Sparse SfM complete (98.3% images). Dense MVS in progress.",
-  "tools": ["COLMAP 3.13 CUDA", "OpenMVS 2.4", "PyMeshLab", "Python pipeline"]
+  "pipeline_status": "Interactive Gaussian splat (556k Gaussians) — walk through it live in the browser.",
+  "tools": ["COLMAP 3.13 (CUDA)", "Brush — Gaussian splatting", "Python pipeline"]
 }

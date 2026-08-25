@@ -76,9 +76,10 @@
       <div>
         <h2>What this is</h2>
         <p>
-          A full open-source pipeline turns a single Insta360 X2 interior walkthrough into a dense 3D mesh.
-          The camera moves through the bottom floor of a house in the Netherlands while a drone rig is masked out
-          so photogrammetry focuses on walls, furniture, and architecture.
+          A full open-source pipeline turns a single Insta360 X2 interior walkthrough into a real-time 3D
+          Gaussian splat you can walk through in the browser. The camera moves through the bottom floor of a
+          house in the Netherlands; the operator/nadir is masked so reconstruction focuses on walls, furniture,
+          and architecture.
         </p>
         <p class="status-line" id="pipeline-status"></p>
       </div>
@@ -96,8 +97,8 @@
         <li><strong>Mask</strong> — hide drone nadir (bottom 42%)</li>
         <li><strong>Dewarp</strong> — 12 perspective views per frame</li>
         <li><strong>COLMAP SfM</strong> — sparse cameras + point cloud</li>
-        <li><strong>Dense MVS</strong> — depth maps, fusion, Poisson mesh</li>
-        <li><strong>OpenMVS</strong> — textured OBJ export</li>
+        <li><strong>Gaussian splatting</strong> — train ~556k Gaussians (Brush, no CUDA build)</li>
+        <li><strong>Export</strong> — compact .splat for real-time web viewing</li>
       </ol>
       <ul class="tool-list" id="tool-list"></ul>
     </section>
@@ -124,8 +125,8 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js",
+      "@mkkellogg/gaussian-splats-3d": "https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.7/build/gaussian-splats-3d.module.js"
     }
   }
   </script>

@@ -1,14 +1,18 @@
 /**
- * 3D showcase viewer — first-person walk (WASD) + orbit mode.
- * Loads: model.glb → model.ply → sparse_preview.ply → preview image.
+ * 3D showcase viewer — Gaussian splat (first-person walk + orbit).
+ * Renders assets/livingroom.splat with @mkkellogg/gaussian-splats-3d into the
+ * existing hero canvas UI. Camera is built around the reconstruction's true
+ * "up" vector (this scene's up is ~ -Y, not +Y) so the horizon stays level.
  */
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { PointerLockControls } from "three/addons/controls/PointerLockControls.js";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { PLYLoader } from "three/addons/loaders/PLYLoader.js";
+import * as GS from "@mkkellogg/gaussian-splats-3d";
 
-const canvas = document.getElementById("viewer-canvas");
+const SPLAT_URL = "assets/livingroom.splat";
+// Mean of the COLMAP camera up-vectors for this reconstruction (ply frame).
+const UP = new THREE.Vector3(-0.0167, -0.9804, 0.1963).normalize();
+
+const wrap = document.getElementById("viewer-wrap");
+const oldCanvas = document.getElementById("viewer-canvas");
 const overlay = document.getElementById("viewer-overlay");
 const statusEl = document.getElementById("viewer-status");
 const spinner = document.getElementById("viewer-spinner");
@@ -18,259 +22,145 @@ const btnWalk = document.getElementById("btn-walk");
 const btnOrbit = document.getElementById("btn-orbit");
 const btnFs = document.getElementById("btn-fullscreen");
 
-const EYE_HEIGHT = 1.65;
-const MOVE_SPEED = 4.0;
-const SPRINT_MULT = 1.8;
+if (oldCanvas) oldCanvas.style.display = "none"; // library creates its own canvas
 
-function setStatus(msg, hideSpinner = false) {
-  if (statusEl) statusEl.textContent = msg;
-  if (spinner && hideSpinner) spinner.style.display = "none";
-}
+const setStatus = (m, hide = false) => { if (statusEl) statusEl.textContent = m; if (spinner && hide) spinner.style.display = "none"; };
+const hideOverlay = () => overlay?.classList.add("hidden");
 
-function hideOverlay() {
-  overlay?.classList.add("hidden");
-}
+// horizontal basis perpendicular to UP
+const RIGHT0 = new THREE.Vector3(), FWD0 = new THREE.Vector3();
+(function basis() {
+  const ref = Math.abs(UP.dot(new THREE.Vector3(0, 0, 1))) < 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);
+  RIGHT0.crossVectors(UP, ref).normalize();
+  FWD0.crossVectors(RIGHT0, UP).normalize();
+})();
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0c0e12);
-scene.fog = new THREE.Fog(0x0c0e12, 40, 120);
+const viewer = new GS.Viewer({
+  rootElement: wrap,
+  useBuiltInControls: false,
+  sharedMemoryForWorkers: false,
+  dynamicScene: false,
+  cameraUp: [UP.x, UP.y, UP.z],
+  initialCameraPosition: [0, 0, 1],
+  initialCameraLookAt: [0, 0, 0],
+  sphericalHarmonicsDegree: 0,
+});
 
-const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 300);
-camera.rotation.order = "YXZ";
-
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-
-const orbit = new OrbitControls(camera, canvas);
-orbit.enableDamping = true;
-orbit.dampingFactor = 0.06;
-orbit.enabled = false;
-
-const pointer = new PointerLockControls(camera, document.body);
+// ---- scene bounds + camera state ----
+const st = { center: new THREE.Vector3(), size: 6, pos: new THREE.Vector3(), yaw: 0, pitch: 0, speed: 1 };
 const keys = { w: false, a: false, s: false, d: false, shift: false };
-const velocity = new THREE.Vector3();
-const direction = new THREE.Vector3();
 let mode = "walk";
-let content = null;
-let sceneBounds = new THREE.Box3();
-let floorY = 0;
-let hasRealMesh = false;
+let dragging = false, lx = 0, ly = 0;
+// orbit state
+const orb = { az: 0, el: 0.25, dist: 6 };
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-const keyLight = new THREE.DirectionalLight(0xffffff, 0.9);
-keyLight.position.set(6, 12, 4);
-scene.add(keyLight);
+function robustBounds() {
+  let mesh = null, count = 0;
+  try { mesh = viewer.getSplatMesh ? viewer.getSplatMesh() : viewer.splatMesh; count = mesh.getSplatCount(); } catch (e) {}
+  if (mesh && count > 0) {
+    const t = new THREE.Vector3(), xs = [], ys = [], zs = [], N = Math.min(count, 8000);
+    for (let i = 0; i < N; i++) { mesh.getSplatCenter((Math.random() * count) | 0, t, true); if (isFinite(t.x)) { xs.push(t.x); ys.push(t.y); zs.push(t.z); } }
+    const pc = (a, p) => { const b = [...a].sort((u, v) => u - v); return b[Math.max(0, Math.min(b.length - 1, Math.round(p * (b.length - 1))))]; };
+    st.center.set(pc(xs, .5), pc(ys, .5), pc(zs, .5));
+    st.size = Math.max(pc(xs, .9) - pc(xs, .1), pc(ys, .9) - pc(ys, .1), pc(zs, .9) - pc(zs, .1), 1);
+  }
+  st.speed = st.size * 0.12;
+  orb.dist = st.size * 0.9;
+  st.pos.copy(st.center);
+}
 
 function setMode(next) {
   mode = next;
-  if (mode === "walk") {
-    orbit.enabled = false;
-    pointer.unlock();
+  if (next === "walk") {
+    btnWalk?.classList.add("active"); btnOrbit?.classList.remove("active");
     walkHud?.classList.remove("hidden");
-    if (hintEl) {
-      hintEl.textContent = "Click Enter walk mode, then WASD to move · mouse to look · Esc to exit";
-    }
-    btnWalk?.classList.add("active");
-    btnOrbit?.classList.remove("active");
+    if (hintEl) hintEl.textContent = "Click the view, then WASD to move · mouse/drag to look · Shift sprint";
   } else {
-    pointer.unlock();
-    orbit.enabled = true;
+    btnOrbit?.classList.add("active"); btnWalk?.classList.remove("active");
     walkHud?.classList.add("hidden");
-    if (hintEl) {
-      hintEl.textContent = "Drag to orbit · scroll to zoom · right-drag to pan";
-    }
-    btnOrbit?.classList.add("active");
-    btnWalk?.classList.remove("active");
+    document.exitPointerLock?.();
+    if (hintEl) hintEl.textContent = "Drag to orbit · scroll to zoom";
+    // seed orbit angles from current position
+    orb.dist = Math.max(st.size * 0.4, st.pos.distanceTo(st.center));
   }
 }
 
-function meshFromGeometry(geo, { pointCloud = false } = {}) {
-  if (pointCloud) {
-    geo.computeBoundingBox();
-    const hasColor = geo.hasAttribute("color");
-    const mat = new THREE.PointsMaterial({
-      size: hasRealMesh ? 0.015 : 0.04,
-      vertexColors: hasColor,
-      color: hasColor ? 0xffffff : 0x9eb8d4,
-      sizeAttenuation: true,
-    });
-    return new THREE.Points(geo, mat);
-  }
-  geo.computeVertexNormals();
-  return new THREE.Mesh(
-    geo,
-    new THREE.MeshStandardMaterial({ color: 0xb8c4d0, roughness: 0.82, metalness: 0.04, side: THREE.DoubleSide })
-  );
-}
-
-function updateBounds(object) {
-  sceneBounds.setFromObject(object);
-  floorY = sceneBounds.min.y;
-}
-
-function placeWalkSpawn() {
-  const center = sceneBounds.getCenter(new THREE.Vector3());
-  const size = sceneBounds.getSize(new THREE.Vector3());
-  camera.position.set(center.x, floorY + EYE_HEIGHT, center.z + size.z * 0.15);
-  camera.rotation.set(0, 0, 0);
-  orbit.target.copy(center);
-  orbit.update();
-}
-
-async function tryLoad(url, pointCloud = false) {
-  const loader = new PLYLoader();
-  return new Promise((resolve, reject) => {
-    loader.load(
-      url,
-      (geo) => resolve(meshFromGeometry(geo, { pointCloud })),
-      undefined,
-      reject
-    );
-  });
-}
-
-async function loadGlb() {
-  const loader = new GLTFLoader();
-  return new Promise((resolve, reject) => {
-    loader.load("assets/model.glb", (gltf) => resolve(gltf.scene), undefined, reject);
-  });
-}
-
-async function loadPreviewFallback() {
-  setStatus("Showing photo preview — export mesh for full walk", true);
-  const texLoader = new THREE.TextureLoader();
-  return new Promise((resolve, reject) => {
-    texLoader.load(
-      "assets/preview.jpg",
-      (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        const aspect = tex.image.width / tex.image.height;
-        const h = 2.4;
-        const geo = new THREE.PlaneGeometry(h * aspect, h);
-        const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.rotation.y = 0.08;
-        resolve(mesh);
-      },
-      undefined,
-      reject
-    );
-  });
-}
-
-async function initContent() {
-  const sources = [
-    { fn: loadGlb, label: "mesh (GLB)", mesh: true },
-    { fn: () => tryLoad("assets/model.ply"), label: "mesh (PLY)", mesh: true },
-    { fn: () => tryLoad("assets/sparse_preview.ply", true), label: "sparse point cloud", mesh: false },
-  ];
-
-  for (const src of sources) {
-    try {
-      setStatus(`Loading ${src.label}…`);
-      content = await src.fn();
-      hasRealMesh = src.mesh;
-      setStatus(`Loaded ${src.label}`, true);
-      break;
-    } catch {
-      /* try next */
-    }
-  }
-
-  if (!content) {
-    try {
-      content = await loadPreviewFallback();
-      hasRealMesh = false;
-    } catch {
-      content = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 0.6, 1.4),
-        new THREE.MeshStandardMaterial({ color: 0x3d6f96 })
-      );
-    }
-  }
-
-  scene.add(content);
-  updateBounds(content);
-  placeWalkSpawn();
-  setMode(hasRealMesh || content.isPoints ? "walk" : "orbit");
-  if (content.isPoints && hintEl) {
-    hintEl.textContent = "Walk through the point cloud · dense mesh loads when exported";
-  }
-  setTimeout(hideOverlay, 400);
-}
-
-function onKey(e, down) {
+// ---- input ----
+const el = () => wrap.querySelector("canvas") || wrap;
+function onKey(e, d) {
   const k = e.code;
-  if (k === "KeyW") keys.w = down;
-  if (k === "KeyA") keys.a = down;
-  if (k === "KeyS") keys.s = down;
-  if (k === "KeyD") keys.d = down;
-  if (k === "ShiftLeft" || k === "ShiftRight") keys.shift = down;
+  if (k === "KeyW") keys.w = d; if (k === "KeyS") keys.s = d;
+  if (k === "KeyA") keys.a = d; if (k === "KeyD") keys.d = d;
+  if (k === "ShiftLeft" || k === "ShiftRight") keys.shift = d;
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(k)) e.preventDefault();
 }
+addEventListener("keydown", (e) => onKey(e, true));
+addEventListener("keyup", (e) => onKey(e, false));
 
-document.addEventListener("keydown", (e) => onKey(e, true));
-document.addEventListener("keyup", (e) => onKey(e, false));
-
-btnWalk?.addEventListener("click", () => {
-  setMode("walk");
-  pointer.lock();
+wrap.addEventListener("mousedown", (e) => { dragging = true; lx = e.clientX; ly = e.clientY; });
+addEventListener("mouseup", () => { dragging = false; });
+addEventListener("mousemove", (e) => {
+  const locked = document.pointerLockElement;
+  if (locked) { st.yaw -= e.movementX * 0.0025; st.pitch -= e.movementY * 0.0025; clampPitch(); return; }
+  if (!dragging) return;
+  const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+  if (mode === "walk") { st.yaw -= dx * 0.005; st.pitch -= dy * 0.005; clampPitch(); }
+  else { orb.az -= dx * 0.008; orb.el = Math.max(-1.4, Math.min(1.4, orb.el + dy * 0.008)); }
 });
+wrap.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  if (mode === "orbit") orb.dist = Math.max(st.size * 0.05, orb.dist * (e.deltaY < 0 ? 0.9 : 1.11));
+  else st.speed *= (e.deltaY < 0 ? 1.12 : 0.9);
+}, { passive: false });
+
+const clampPitch = () => st.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, st.pitch));
+
+btnWalk?.addEventListener("click", () => { setMode("walk"); el().requestPointerLock?.(); });
 btnOrbit?.addEventListener("click", () => setMode("orbit"));
-btnFs?.addEventListener("click", () => {
-  canvas.parentElement?.requestFullscreen?.();
-});
+btnFs?.addEventListener("click", () => wrap.requestFullscreen?.());
+wrap.addEventListener("click", () => { if (mode === "walk" && !document.pointerLockElement) el().requestPointerLock?.(); });
 
-pointer.addEventListener("lock", () => walkHud?.querySelector(".walk-prompt")?.classList.add("hidden"));
-pointer.addEventListener("unlock", () => walkHud?.querySelector(".walk-prompt")?.classList.remove("hidden"));
-
-const clock = new THREE.Clock();
-
-function tickWalk(delta) {
-  if (!pointer.isLocked) return;
-
-  velocity.x -= velocity.x * 8 * delta;
-  velocity.z -= velocity.z * 8 * delta;
-
-  direction.set(0, 0, 0);
-  if (keys.w) direction.z -= 1;
-  if (keys.s) direction.z += 1;
-  if (keys.a) direction.x -= 1;
-  if (keys.d) direction.x += 1;
-  direction.normalize();
-
-  const speed = MOVE_SPEED * (keys.shift ? SPRINT_MULT : 1);
-  if (keys.w || keys.s) velocity.z -= direction.z * speed * delta;
-  if (keys.a || keys.d) velocity.x -= direction.x * speed * delta;
-
-  pointer.moveRight(-velocity.x * delta);
-  pointer.moveForward(-velocity.z * delta);
-
-  camera.position.y = floorY + EYE_HEIGHT;
-
-  const pad = 0.5;
-  camera.position.x = THREE.MathUtils.clamp(camera.position.x, sceneBounds.min.x + pad, sceneBounds.max.x - pad);
-  camera.position.z = THREE.MathUtils.clamp(camera.position.z, sceneBounds.min.z + pad, sceneBounds.max.z - pad);
+// ---- per-frame camera ----
+let prev = performance.now();
+function forwardDir() {
+  const h = new THREE.Vector3().addScaledVector(FWD0, Math.cos(st.yaw)).addScaledVector(RIGHT0, Math.sin(st.yaw));
+  return new THREE.Vector3().addScaledVector(h, Math.cos(st.pitch)).addScaledVector(UP, Math.sin(st.pitch)).normalize();
+}
+function updateCamera(dt) {
+  const cam = viewer.camera;
+  if (mode === "orbit") {
+    const dir = new THREE.Vector3()
+      .addScaledVector(FWD0, Math.cos(orb.el) * Math.cos(orb.az))
+      .addScaledVector(RIGHT0, Math.cos(orb.el) * Math.sin(orb.az))
+      .addScaledVector(UP, Math.sin(orb.el));
+    cam.position.copy(st.center).addScaledVector(dir, orb.dist);
+    cam.up.copy(UP); cam.lookAt(st.center); cam.updateMatrixWorld();
+    return;
+  }
+  const fwd = forwardDir();
+  const right = new THREE.Vector3().crossVectors(fwd, UP).normalize();
+  const mv = new THREE.Vector3();
+  if (keys.w) mv.add(fwd); if (keys.s) mv.addScaledVector(fwd, -1);
+  if (keys.d) mv.add(right); if (keys.a) mv.addScaledVector(right, -1);
+  if (mv.lengthSq() > 0) st.pos.addScaledVector(mv.normalize(), st.speed * dt * (keys.shift ? 2.4 : 1));
+  cam.position.copy(st.pos);
+  cam.up.copy(UP); cam.lookAt(st.pos.clone().add(fwd)); cam.updateMatrixWorld();
+}
+function loop() {
+  requestAnimationFrame(loop);
+  const now = performance.now(), dt = Math.min(0.05, (now - prev) / 1000); prev = now;
+  updateCamera(dt);
 }
 
-function resize() {
-  const wrap = canvas.parentElement;
-  const w = wrap.clientWidth;
-  const h = wrap.clientHeight;
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h, false);
-}
-
-function animate() {
-  requestAnimationFrame(animate);
-  const delta = Math.min(clock.getDelta(), 0.05);
-  if (mode === "walk") tickWalk(delta);
-  else orbit.update();
-  renderer.render(scene, camera);
-}
-
-resize();
-window.addEventListener("resize", resize);
-initContent();
-animate();
+setStatus("Loading 3D model…");
+viewer.addSplatScene(SPLAT_URL, {
+  showLoadingUI: false, progressiveLoad: false, splatAlphaRemovalThreshold: 5,
+  onProgress: (p) => setStatus("Loading splat… " + Math.round(p) + "%"),
+}).then(() => {
+  robustBounds();
+  setMode("walk");
+  setStatus("Loaded", true);
+  hideOverlay();
+  viewer.start();
+  loop();
+}).catch((e) => { setStatus("Could not load model: " + (e && e.message || e), true); console.error(e); });

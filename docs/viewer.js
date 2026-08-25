@@ -153,14 +153,38 @@ function loop() {
 }
 
 setStatus("Loading 3D model…");
-viewer.addSplatScene(SPLAT_URL, {
-  showLoadingUI: false, progressiveLoad: false, splatAlphaRemovalThreshold: 5,
-  onProgress: (p) => setStatus("Loading splat… " + Math.round(p) + "%"),
-}).then(() => {
-  robustBounds();
-  setMode("walk");
-  setStatus("Loaded", true);
-  hideOverlay();
-  viewer.start();
-  loop();
-}).catch((e) => { setStatus("Could not load model: " + (e && e.message || e), true); console.error(e); });
+(async () => {
+  try {
+    // Fetch the whole splat ourselves, then hand the viewer a local blob URL.
+    // GitHub Pages' streamed responses break the library's built-in URL loader;
+    // a fully-buffered local blob is reliable across hosts.
+    const resp = await fetch(SPLAT_URL);
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const total = +(resp.headers.get("content-length") || 0);
+    const reader = resp.body.getReader();
+    const chunks = []; let received = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value); received += value.length;
+      if (total) setStatus("Loading splat… " + Math.round((received / total) * 100) + "%");
+    }
+    const bytes = new Uint8Array(received); let off = 0;
+    for (const c of chunks) { bytes.set(c, off); off += c.length; }
+    const blobUrl = URL.createObjectURL(new Blob([bytes], { type: "application/octet-stream" }));
+    await viewer.addSplatScene(blobUrl, {
+      format: GS.SceneFormat.Splat,
+      showLoadingUI: false, progressiveLoad: false, splatAlphaRemovalThreshold: 5,
+    });
+    URL.revokeObjectURL(blobUrl);
+    robustBounds();
+    setMode("walk");
+    setStatus("Loaded", true);
+    hideOverlay();
+    viewer.start();
+    loop();
+  } catch (e) {
+    setStatus("Could not load model: " + (e && e.message || e), true);
+    console.error(e);
+  }
+})();

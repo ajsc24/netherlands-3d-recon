@@ -65,7 +65,7 @@ function robustBounds() {
     st.size = Math.max(pc(xs, .9) - pc(xs, .1), pc(ys, .9) - pc(ys, .1), pc(zs, .9) - pc(zs, .1), 1);
   }
   st.speed = st.size * 0.12;
-  orb.dist = st.size * 0.9;
+  orb.dist = st.size * 0.5;   // stay inside the well-covered core, off the fuzzy edges
   st.pos.copy(st.center);
 }
 

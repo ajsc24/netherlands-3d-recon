@@ -49,10 +49,11 @@ const viewer = new GS.Viewer({
 // ---- scene bounds + camera state ----
 const st = { center: new THREE.Vector3(), size: 6, pos: new THREE.Vector3(), yaw: 0, pitch: 0, speed: 1 };
 const keys = { w: false, a: false, s: false, d: false, shift: false };
-let mode = "walk";
-let dragging = false, lx = 0, ly = 0;
-// orbit state
-const orb = { az: 0, el: 0.25, dist: 6 };
+let mode = "orbit";
+let dragPrev = null;            // single-pointer drag {x,y}
+const pointers = new Map();     // pointerId -> {x,y}  (mouse + touch unified)
+let twoPrev = null;             // last two-finger {cx,cy,dist}
+const orb = { az: 0.5, el: 0.28, dist: 6 };
 
 function robustBounds() {
   let mesh = null, count = 0;
@@ -69,24 +70,25 @@ function robustBounds() {
   st.pos.copy(st.center);
 }
 
+const coarse = () => matchMedia("(pointer: coarse)").matches;
 function setMode(next) {
   mode = next;
+  walkHud?.classList.add("hidden");
   if (next === "walk") {
     btnWalk?.classList.add("active"); btnOrbit?.classList.remove("active");
-    walkHud?.classList.remove("hidden");
-    if (hintEl) hintEl.textContent = "Click the view, then WASD to move · mouse/drag to look · Shift sprint";
+    if (hintEl) hintEl.textContent = coarse()
+      ? "Drag to look · two fingers to move · pinch to go forward"
+      : "Drag to look · WASD to move · Shift sprint · scroll to go forward";
   } else {
     btnOrbit?.classList.add("active"); btnWalk?.classList.remove("active");
-    walkHud?.classList.add("hidden");
-    document.exitPointerLock?.();
-    if (hintEl) hintEl.textContent = "Drag to orbit · scroll to zoom";
-    // seed orbit angles from current position
-    orb.dist = Math.max(st.size * 0.4, st.pos.distanceTo(st.center));
+    if (hintEl) hintEl.textContent = coarse() ? "Drag to orbit · pinch to zoom" : "Drag to orbit · scroll to zoom";
+    orb.dist = st.size * 0.5;
   }
 }
 
-// ---- input ----
-const el = () => wrap.querySelector("canvas") || wrap;
+// ---- input: mouse + touch unified via Pointer Events ----
+wrap.style.touchAction = "none";   // stop the page from scrolling/zooming on a drag
+const clampPitch = () => st.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, st.pitch));
 function onKey(e, d) {
   const k = e.code;
   if (k === "KeyW") keys.w = d; if (k === "KeyS") keys.s = d;
@@ -97,28 +99,75 @@ function onKey(e, d) {
 addEventListener("keydown", (e) => onKey(e, true));
 addEventListener("keyup", (e) => onKey(e, false));
 
-wrap.addEventListener("mousedown", (e) => { dragging = true; lx = e.clientX; ly = e.clientY; });
-addEventListener("mouseup", () => { dragging = false; });
-addEventListener("mousemove", (e) => {
-  const locked = document.pointerLockElement;
-  if (locked) { st.yaw -= e.movementX * 0.0025; st.pitch -= e.movementY * 0.0025; clampPitch(); return; }
-  if (!dragging) return;
-  const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
-  if (mode === "walk") { st.yaw -= dx * 0.005; st.pitch -= dy * 0.005; clampPitch(); }
-  else { orb.az -= dx * 0.008; orb.el = Math.max(-1.4, Math.min(1.4, orb.el + dy * 0.008)); }
+function twoState() { const [a, b] = [...pointers.values()]; return { cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, dist: Math.hypot(a.x - b.x, a.y - b.y) || 1 }; }
+wrap.addEventListener("pointerdown", (e) => {
+  try { wrap.setPointerCapture?.(e.pointerId); } catch (err) {}
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) dragPrev = { x: e.clientX, y: e.clientY };
+  else if (pointers.size === 2) { twoPrev = twoState(); dragPrev = null; }
+});
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  twoPrev = pointers.size === 2 ? twoState() : null;
+  const first = [...pointers.values()][0];
+  dragPrev = first ? { x: first.x, y: first.y } : null;
+}
+wrap.addEventListener("pointerup", endPointer);
+wrap.addEventListener("pointercancel", endPointer);
+wrap.addEventListener("pointermove", (e) => {
+  const p = pointers.get(e.pointerId); if (!p) return;
+  p.x = e.clientX; p.y = e.clientY;
+  if (pointers.size === 1 && dragPrev) {
+    const dx = e.clientX - dragPrev.x, dy = e.clientY - dragPrev.y;
+    dragPrev.x = e.clientX; dragPrev.y = e.clientY;
+    if (mode === "orbit") { orb.az -= dx * 0.006; orb.el = Math.max(-1.4, Math.min(1.4, orb.el + dy * 0.006)); }
+    else { st.yaw -= dx * 0.004; st.pitch -= dy * 0.004; clampPitch(); }
+  } else if (pointers.size === 2 && twoPrev) {
+    const t = twoState();
+    if (mode === "orbit") {
+      orb.dist = Math.max(st.size * 0.05, Math.min(st.size * 3, orb.dist * (twoPrev.dist / t.dist)));
+    } else {
+      const fwd = forwardDir(), right = new THREE.Vector3().crossVectors(fwd, UP).normalize();
+      st.pos.addScaledVector(fwd, (t.dist - twoPrev.dist) * st.size * 0.0016);   // pinch out = forward
+      st.pos.addScaledVector(right, (t.cx - twoPrev.cx) * st.size * 0.0011);      // two-finger slide = strafe
+      st.pos.addScaledVector(UP, (t.cy - twoPrev.cy) * st.size * 0.0011);         // ... and up/down
+    }
+    twoPrev = t;
+  }
 });
 wrap.addEventListener("wheel", (e) => {
   e.preventDefault();
   if (mode === "orbit") orb.dist = Math.max(st.size * 0.05, orb.dist * (e.deltaY < 0 ? 0.9 : 1.11));
-  else st.speed *= (e.deltaY < 0 ? 1.12 : 0.9);
+  else st.pos.addScaledVector(forwardDir(), (e.deltaY < 0 ? 1 : -1) * st.size * 0.03);
 }, { passive: false });
 
-const clampPitch = () => st.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, st.pitch));
-
-btnWalk?.addEventListener("click", () => { setMode("walk"); el().requestPointerLock?.(); });
+btnWalk?.addEventListener("click", () => setMode("walk"));
 btnOrbit?.addEventListener("click", () => setMode("orbit"));
-btnFs?.addEventListener("click", () => wrap.requestFullscreen?.());
-wrap.addEventListener("click", () => { if (mode === "walk" && !document.pointerLockElement) el().requestPointerLock?.(); });
+btnFs?.addEventListener("click", toggleFullscreen);
+addEventListener("keydown", (e) => { if (e.code === "Escape" && wrap.classList.contains("pseudo-fs")) pseudoFs(false); });
+
+function pseudoFs(on) { wrap.classList.toggle("pseudo-fs", on); requestAnimationFrame(fitRenderer); }
+function isRealFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function toggleFullscreen() {
+  if (wrap.classList.contains("pseudo-fs")) return pseudoFs(false);
+  if (isRealFs()) { (document.exitFullscreen || document.webkitExitFullscreen)?.call(document); return; }
+  try {
+    const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+    const p = req && req.call(wrap);
+    if (p && p.catch) p.catch(() => pseudoFs(true));
+  } catch (e) { /* fall through to CSS fallback */ }
+  // If real fullscreen didn't engage (iOS, sandboxed iframe, etc.) use CSS fullscreen.
+  setTimeout(() => { if (!isRealFs() && !wrap.classList.contains("pseudo-fs")) pseudoFs(true); }, 300);
+}
+function fitRenderer() {
+  try {
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    viewer.renderer?.setSize(w, h);
+    if (viewer.camera) { viewer.camera.aspect = w / h; viewer.camera.updateProjectionMatrix(); }
+  } catch (err) {}
+}
+addEventListener("resize", fitRenderer);
+document.addEventListener("fullscreenchange", () => requestAnimationFrame(fitRenderer));
 
 // ---- per-frame camera ----
 let prev = performance.now();
@@ -178,7 +227,7 @@ setStatus("Loading 3D model…");
     });
     URL.revokeObjectURL(blobUrl);
     robustBounds();
-    setMode("walk");
+    setMode("orbit");
     setStatus("Loaded", true);
     hideOverlay();
     viewer.start();
